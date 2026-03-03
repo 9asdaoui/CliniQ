@@ -28,7 +28,21 @@ services:
       - .env
     volumes:
       - ./backend/app:/app
+      - hf_cache:/root/.cache/huggingface   # persist model weights across rebuilds
 
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vitaquest_frontend
+    networks:
+      - app-network
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:v1.16.2
@@ -40,26 +54,6 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     restart: unless-stopped
-
-
-  frontend:
-    build: 
-      context: .
-      dockerfile: frontend/Dockerfile
-    container_name: vitaquest_frontend
-    ports:
-      - "3571:5173"
-    networks:
-      - app-network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - REACT_APP_API_URL=http://backend:8000
-    command: npm run dev -- --host
-
 
   mlflow:
     build:
@@ -136,6 +130,7 @@ volumes:
   pgdata:
   qdrant_storage:
   grafana_storage:
+  hf_cache:   # shared HuggingFace model cache – survives rebuilds
 
   
 networks:

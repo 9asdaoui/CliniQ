@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM ghcr.io/mlflow/mlflow:v3.8.1
 
 
@@ -6,7 +7,8 @@ COPY ./mlflow .
 
 
 # Install PostgreSQL driver
-RUN pip install psycopg2-binary
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install psycopg2-binary
 
 
 CMD mlflow server \

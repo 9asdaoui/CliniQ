@@ -1,14 +1,15 @@
-FROM node:20-alpine
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY ./frontend/package*.json ./
-RUN npm install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PATH /app/node_modules/.bin:$PATH
+COPY app.py .
 
-# Expose the dev server port
-EXPOSE 5173
+EXPOSE 8501
 
-# This ensures we use the dev server which supports HMR
-CMD ["npm", "run", "dev"]
+CMD ["streamlit", "run", "app.py", \
+     "--server.port=8501", \
+     "--server.address=0.0.0.0", \
+     "--server.headless=true"]
