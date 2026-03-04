@@ -8,19 +8,28 @@ class FakeUpload:
         self.file = io.BytesIO(content)
 
 
-@patch("app.services.utils.extract.LlamaParse")
-def test_extract_content_from_uploaded_pdf(mock_llama):
-
-    mock_parser = MagicMock()
-    mock_llama.return_value = mock_parser
-
-    mock_parser.load_data.return_value = [
-        MagicMock(text="Page 1"),
-        MagicMock(text="Page 2"),
-    ]
+@patch("app.services.utils.extract._extract_with_pdfplumber")
+def test_extract_content_from_uploaded_pdf(mock_pdfplumber):
+    """Default path: no API key → uses pdfplumber."""
+    mock_pdfplumber.return_value = ["Page 1", "Page 2"]
 
     fake_file = FakeUpload(b"fake pdf content")
 
     result = extract_content_from_uploaded_pdf(fake_file)
 
     assert result == ["Page 1", "Page 2"]
+    mock_pdfplumber.assert_called_once()
+
+
+@patch.dict("os.environ", {"LLAMA_CLOUD_API_KEY": "real-api-key-123"})
+@patch("app.services.utils.extract._extract_with_llamaparse")
+def test_extract_with_llamaparse_when_key_set(mock_llamaparse):
+    """When a valid API key is set, LlamaParse path is used."""
+    mock_llamaparse.return_value = ["Page A", "Page B"]
+
+    fake_file = FakeUpload(b"fake pdf content")
+
+    result = extract_content_from_uploaded_pdf(fake_file)
+
+    assert result == ["Page A", "Page B"]
+    mock_llamaparse.assert_called_once()

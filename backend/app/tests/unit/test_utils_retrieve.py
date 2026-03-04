@@ -25,7 +25,7 @@ def test_hierarchical_retriever():
     hit3.payload = {"parent_id": 1}
     hit3.score = 0.7
 
-    mock_client.query_points.return_value.points = [hit1, hit2, hit3]
+    mock_client.search.return_value = [hit1, hit2, hit3]
 
     # Mock SQLite cursor
     mock_cursor = MagicMock()
