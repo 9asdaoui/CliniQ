@@ -16,8 +16,8 @@ python-jose
 passlib[bcrypt]
 
 # PDF Processing
-# pdfplumber
-# PyPDF2
+pdfplumber
+# llama_parse  # optional: set LLAMA_CLOUD_API_KEY to enable
 llama_parse
 
 # LangChain & RAG

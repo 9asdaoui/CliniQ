@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: vitaquest_postgres
+    container_name: cliniq_postgres
     restart: unless-stopped
     networks:
       - app-network
@@ -16,10 +16,8 @@ services:
 
 
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: vitaquest_backend
+    image: cliniq-backend:fixed
+    container_name: cliniq_backend
     networks:
       - app-network
     ports:
@@ -29,13 +27,14 @@ services:
     volumes:
       - ./backend/app:/app
       - hf_cache:/root/.cache/huggingface   # persist model weights across rebuilds
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
 
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: vitaquest_frontend
+    container_name: cliniq_frontend
     networks:
       - app-network
     ports:
@@ -43,10 +42,12 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    volumes:
+      - ./frontend/app.py:/app/app.py   # hot-reload on edits
 
   qdrant:
     image: qdrant/qdrant:v1.16.2
-    container_name: vitaquest_qdrant
+    container_name: cliniq_qdrant
     networks:
       - app-network
     ports:
@@ -59,7 +60,7 @@ services:
     build:
       context: .
       dockerfile: mlflow/Dockerfile
-    container_name: vitaquest_mlflow
+    container_name: cliniq_mlflow
     networks:
       - app-network
     ports:
@@ -80,7 +81,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: vitaquest_prometheus
+    container_name: cliniq_prometheus
     networks:
       - app-network
     ports:
@@ -91,7 +92,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: vitaquest_grafana
+    container_name: cliniq_grafana
     networks:
       - app-network
     ports:
@@ -107,7 +108,7 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
-    container_name: vitaquest_cadvisor
+    container_name: cliniq_cadvisor
     networks:
       - app-network
     ports:
@@ -120,7 +121,7 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: vitaquest_alertmanager
+    container_name: cliniq_alertmanager
     ports:
       - "9093:9093"
     volumes:

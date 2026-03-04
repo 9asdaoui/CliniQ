@@ -13,12 +13,24 @@ st.set_page_config(
 )
 
 # ── Session state defaults ───────────────────────────────────────────────────
+SUGGESTED_QUESTIONS = [
+    "Quel est le traitement d'une laryngite chez l'enfant ?",
+    "Quelles sont les recommandations générales pour l'usage des antibiotiques ?",
+    "Comment prendre en charge une douleur abdominale chez l'enfant ?",
+    "Quel est le traitement en cas de piqûre de poisson pierre ?",
+    "Comment gérer une difficultè respiratoire chez le nourrisson ?",
+    "Quels sont les signes d'une infection cutanée nécessitant des antibiotiques IV ?",
+    "Quelle est la conduite à tenir en cas de morsure ou envenimation ?",
+    "Quand faut-il changer de palier antalgique chez l'enfant ?",
+]
+
 for key, default in {
     "token": None,
     "first_name": "",
     "last_name": "",
     "role": "",
     "messages": [],
+    "pending_query": "",
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -75,6 +87,7 @@ st.markdown(
             padding: 10px 16px;
             border-radius: 8px;
             margin: 8px 0;
+            color: #1E293B !important;
         }
         .chat-bot {
             background: #F0FDF4;
@@ -82,6 +95,10 @@ st.markdown(
             padding: 10px 16px;
             border-radius: 8px;
             margin: 8px 0;
+            color: #1E293B !important;
+        }
+        .chat-user *, .chat-bot * {
+            color: #1E293B !important;
         }
         .chat-label {
             font-size: 0.75rem;
@@ -90,8 +107,8 @@ st.markdown(
             letter-spacing: 0.05em;
             margin-bottom: 4px;
         }
-        .user-label {color: #2563EB;}
-        .bot-label  {color: #059669;}
+        .user-label {color: #2563EB !important;}
+        .bot-label  {color: #059669 !important;}
 
         /* auth card */
         .auth-card {
@@ -111,6 +128,26 @@ st.markdown(
             margin-top: 6px;
         }
 
+        /* suggestion chips */
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 16px 0 8px 0;
+        }
+        .chip {
+            background: #EFF6FF;
+            border: 1.5px solid #BFDBFE;
+            color: #1D4ED8 !important;
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+        .chip:hover { background:#DBEAFE; border-color:#93C5FD; }
+
         /* pill badge */
         .badge {
             display: inline-block;
@@ -119,8 +156,8 @@ st.markdown(
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge-user  {background:#DBEAFE; color:#1D4ED8;}
-        .badge-admin {background:#FEF3C7; color:#B45309;}
+        .badge-user  {background:#DBEAFE; color:#1D4ED8 !important;}
+        .badge-admin {background:#FEF3C7; color:#B45309 !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -164,8 +201,11 @@ def auth_page():
                             resp = requests.post(
                                 f"{API_BASE}/auth/login",
                                 json={"email": email, "password": password},
-                                timeout=10,
+                                timeout=30,
                             )
+                        except requests.exceptions.ReadTimeout:
+                            st.error("Backend is taking too long to respond. Please try again.")
+                            return
                         except requests.exceptions.ConnectionError:
                             st.error("Cannot reach the backend. Make sure the server is running.")
                             return
@@ -219,8 +259,11 @@ def auth_page():
                                     "email": reg_email,
                                     "password": reg_password,
                                 },
-                                timeout=10,
+                                timeout=30,
                             )
+                        except requests.exceptions.ReadTimeout:
+                            st.error("Backend is taking too long to respond. Please try again.")
+                            return
                         except requests.exceptions.ConnectionError:
                             st.error("Cannot reach the backend.")
                             return
@@ -305,6 +348,15 @@ def main_app():
     st.markdown("#### 💬 Ask CliniQ")
     st.caption("Ask a clinical question and get an evidence-based answer from the knowledge base.")
 
+    # ── Suggested questions (shown only when chat is empty) ──
+    if not st.session_state.messages:
+        st.markdown("<p style='font-size:0.83rem;color:#64748B;margin-bottom:4px;'>💡 Try one of these:</p>", unsafe_allow_html=True)
+        cols = st.columns(2)
+        for i, q in enumerate(SUGGESTED_QUESTIONS):
+            if cols[i % 2].button(q, key=f"sug_{i}", use_container_width=True):
+                st.session_state.pending_query = q
+                st.rerun()
+
     # Render existing messages
     chat_container = st.container()
     with chat_container:
@@ -332,11 +384,18 @@ def main_app():
         with col_input:
             query = st.text_input(
                 "Query",
+                value=st.session_state.pending_query,
                 placeholder="e.g. What are the contraindications of metformin?",
                 label_visibility="collapsed",
             )
         with col_btn:
             send = st.form_submit_button("Send", type="primary", use_container_width=True)
+
+    # auto-send when a suggestion chip was clicked
+    if st.session_state.pending_query and not send:
+        send = True
+        query = st.session_state.pending_query
+    st.session_state.pending_query = ""
 
     if send and query.strip():
         st.session_state.messages.append({"role": "user", "content": query.strip()})
@@ -347,15 +406,21 @@ def main_app():
                     f"{API_BASE}/rag/generate",
                     json={"query": query.strip()},
                     headers=auth_headers(),
-                    timeout=120,
+                    timeout=300,
                 )
+            except requests.exceptions.ReadTimeout:
+                st.session_state.messages.append({"role": "assistant", "content": "⏳ The model is taking too long to respond (CPU inference is slow). Please try again or ask a shorter question."})
+                st.rerun()
+                resp = None
             except requests.exceptions.ConnectionError:
-                st.error("Cannot reach the backend.")
+                st.session_state.messages.append({"role": "assistant", "content": "❌ Cannot reach the backend. Make sure the server is running."})
+                st.rerun()
                 resp = None
 
-        if resp and resp.status_code == 200:
+        if resp is None:
+            pass
+        elif resp.status_code == 200:
             data = resp.json()
-            # Support both {"answer": ...} and plain string responses
             answer = (
                 data.get("answer")
                 or data.get("response")
@@ -363,13 +428,20 @@ def main_app():
                 or json.dumps(data, indent=2)
             )
             st.session_state.messages.append({"role": "assistant", "content": answer})
-        elif resp and resp.status_code == 401:
-            st.error("Session expired. Please log in again.")
+            st.rerun()
+        elif resp.status_code == 401:
+            st.session_state.messages.pop()
             logout()
-        elif resp:
-            st.error(f"Error {resp.status_code}: {resp.text}")
-
-        st.rerun()
+        elif resp.status_code == 404:
+            st.session_state.messages.append({"role": "assistant", "content": "⚠️ The knowledge base is empty. Please upload and ingest a document using the sidebar first."})
+            st.rerun()
+        else:
+            try:
+                detail = resp.json().get("detail", resp.text)
+            except Exception:
+                detail = resp.text
+            st.session_state.messages.append({"role": "assistant", "content": f"❌ Error {resp.status_code}: {detail}"})
+            st.rerun()
 
     # Clear chat
     if st.session_state.messages:

@@ -19,7 +19,7 @@ def ollama_generate(
             "stream": False,
             "options": {"temperature": temperature, "num_predict": max_tokens},
         },
-        timeout=120,
+        timeout=300,
     )
     response.raise_for_status()
     return response.json()["response"]

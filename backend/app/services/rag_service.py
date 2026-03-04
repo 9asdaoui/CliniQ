@@ -30,12 +30,12 @@ class RAGService:
 
     def __init__(self, emb_model):
         self.client = QdrantClient(url="http://qdrant:6333")
-        self.conn = sqlite3.connect("../rag_chunks.db")
+        self.conn = sqlite3.connect("/app/rag_chunks.db")
         self.ollama_url = "http://host.docker.internal:11434/api/generate"
         self.cursor = self.conn.cursor()
         self.embedder = SentenceTransformer(emb_model)
         self.ollama_model = OllamaModel(
-            model="llama3:8b", base_url="http://host.docker.internal:11434"
+            model="llama2:latest", base_url="http://host.docker.internal:11434"
         )
 
         self.cursor.execute("""
@@ -75,7 +75,7 @@ class RAGService:
         rerank_min_score=0.3,
         normalise=True,
         temperature=0.2,
-        max_tokens=500,
+        max_tokens=150,
         op=False,
     ):
 

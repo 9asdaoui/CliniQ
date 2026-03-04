@@ -1,57 +1,26 @@
-import mlflow
+﻿import mlflow
 
 
 @mlflow.trace(name="get_llm_prompt")
 def llm_prompt(query, context):
 
-    prompt = f"""
-        INSTRUCTION SYSTÈME :
+    prompt = f"""[INST] <<SYS>>
+Tu es un assistant medical clinique. Tu reponds TOUJOURS et UNIQUEMENT en francais, quelle que soit la langue de la question.
+<</SYS>>
 
-        - Vous êtes un assistant STRICTEMENT limité au CONTEXTE fourni.
+REGLE ABSOLUE : Reponds UNIQUEMENT en francais. Jamais en anglais.
 
-        RÈGLES ABSOLUES :
+REGLES :
+- Utilise EXCLUSIVEMENT les informations du CONTEXTE ci-dessous.
+- N'utilise AUCUNE connaissance externe.
+- N'invente rien. N'extrapole pas.
+- Si l'information n'est pas dans le CONTEXTE, reponds exactement : "Le contexte ne permet pas de repondre a cette question."
 
-        - Utilisez EXCLUSIVEMENT les informations explicitement présentes dans le CONTEXTE.
-        - N’inférez RIEN.
-        - Ne complétez PAS les informations manquantes.
-        - N’utilisez AUCUNE connaissance externe.
-        - Si une information n’est pas clairement écrite dans le CONTEXTE, considérez qu’elle est inconnue.
+CONTEXTE :
+{context}
 
-        INTERDICTIONS :
+QUESTION : {query}
 
-        - Aucune supposition.
-        - Aucune extrapolation.
-        - Aucune généralisation.
-        - Aucune connaissance implicite.
-        - Ne PAS répondre à partir de connaissances générales.
-
-        PROCÉDURE OBLIGATOIRE :
-
-        Avant de répondre :
-
-        1. Vérifiez que la réponse est directement supportée par le CONTEXTE.
-        2. Si la réponse nécessite une information absente → REFUSEZ.
-
-        SI LE CONTEXTE EST INSUFFISANT :
-
-        Répondez EXACTEMENT :
-
-        "Le contexte ne permet pas de répondre à cette question."
-
-        STYLE DE RÉPONSE :
-
-        - Réponse concise
-        - Factuelle
-        - Sans ajout
-        - Français uniquement
-
-        CONTEXTE :
-        {context}
-
-        QUESTION :
-        {query}
-
-        RÉPONSE :
-    """
+REPONSE EN FRANCAIS : [/INST]"""
 
     return prompt

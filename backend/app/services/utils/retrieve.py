@@ -16,9 +16,9 @@ def hierarchical_retriever(
     query_vector = embedder.encode(query, normalize_embeddings=normalise).tolist()
 
     # Retrieve top_k chunks from Qdrant
-    response = client.query_points(
+    hits = client.search(
         collection_name="manual_chunks",
-        query=query_vector,
+        query_vector=query_vector,
         limit=retrieval_top_k,
         with_payload=True,
     )
@@ -28,7 +28,7 @@ def hierarchical_retriever(
     final_context = []
     seen_parents = set()
 
-    for hit in response.points:
+    for hit in hits:
         p_id = hit.payload["parent_id"]
 
         if p_id not in seen_parents:

@@ -14,7 +14,9 @@ import time
 
 origins = [
     "http://localhost:3571",  # dev on host
-    "http://frontend:5173",  # frontend container
+    "http://localhost:8501",  # Streamlit on host
+    "http://frontend:8501",  # Streamlit container
+    "http://frontend:5173",  # legacy frontend container
 ]
 
 
@@ -24,7 +26,7 @@ async def lifespan(app: FastAPI):
     # Create database tables
     Base.metadata.create_all(bind=engine)
 
-    setup_mlflow("vitaquest-rag-expirement")
+    setup_mlflow("cliniq-rag-experiment")
 
     yield
 

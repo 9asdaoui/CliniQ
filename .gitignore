@@ -2,3 +2,7 @@
 __pycache__
 .dockerignore
 .deepeval
+# runtime artifacts
+*.db
+test_retrieval.py
+backend/app/test_retrieval.py

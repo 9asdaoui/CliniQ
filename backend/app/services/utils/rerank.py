@@ -4,6 +4,9 @@ import mlflow
 
 @mlflow.trace
 def chunks_reranker(query, chunks, model, rerank_top_k=5, min_score=0.3):
+    if not chunks:
+        return []
+
     reranker = CrossEncoder(model)
 
     pairs = [(query, chunk["text"]) for chunk in chunks]

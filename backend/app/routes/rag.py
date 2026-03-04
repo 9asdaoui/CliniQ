@@ -1,9 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from schemas.query import queryData
 from services.rag_service import RAGService
 from prometheus_client import Counter, Histogram
 from core.deps import require_roles
 from db.deps import get_db
+from qdrant_client.http.exceptions import UnexpectedResponse
 import time
 
 CHUNK_MAX_TOKENS = 500
@@ -15,7 +16,7 @@ CROSS_ENCODER = "BAAI/bge-reranker-large"
 RETRIEVAL_TOP_K = 20
 RERANK_TOP_K = 5
 MIN_RERANK_SCORE = 0.3
-LLM_MODEL = "llama3:8b"
+LLM_MODEL = "llama2:latest"
 LLM_TEMPERATURE = 0.2
 LLM_MAX_TOKENS = 500
 
@@ -36,7 +37,13 @@ rag_latency = Histogram("rag_pipeline_latency_seconds", "RAG pipeline latency")
 # )
 
 
-rag_service = RAGService(EMBEDDING_MODEL)
+_rag_service = None
+
+def get_rag_service() -> RAGService:
+    global _rag_service
+    if _rag_service is None:
+        _rag_service = RAGService(EMBEDDING_MODEL)
+    return _rag_service
 
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
@@ -45,7 +52,7 @@ router = APIRouter(prefix="/rag", tags=["RAG"])
 @router.post("/ingest")
 async def ingest_and_chunk_document(file: UploadFile = File(...)):
 
-    chunks = rag_service.chunk_store_pipeline(
+    chunks = get_rag_service().chunk_store_pipeline(
         file, EMBEDDING_MODEL, EMBEDDING_SIZE, EMBEDDING_NORMALISE
     )
 
@@ -55,7 +62,7 @@ async def ingest_and_chunk_document(file: UploadFile = File(...)):
 @router.post("/chunks")
 async def get_chunks_from_query(data: queryData):
 
-    answer = rag_service.get_chunks(data.query, EMBEDDING_MODEL, CROSS_ENCODER)
+    answer = get_rag_service().get_chunks(data.query, EMBEDDING_MODEL, CROSS_ENCODER)
 
     return answer
 
@@ -73,7 +80,7 @@ async def retrieve_and_generate_llm_answer(
 
     try:
 
-        answer = rag_service.retrieve_generate_pipeline(
+        answer = get_rag_service().retrieve_generate_pipeline(
             db, data.query, user_id, EMBEDDING_MODEL, CROSS_ENCODER, LLM_MODEL, op=True
         )
 
@@ -81,6 +88,15 @@ async def retrieve_and_generate_llm_answer(
         rag_latency.observe(latency)
 
         return {"answer": answer}
+
+    except UnexpectedResponse as e:
+        rag_errors.inc()
+        if "doesn't exist" in str(e) or "Not found" in str(e):
+            raise HTTPException(
+                status_code=404,
+                detail="Knowledge base is empty. Please ingest a document first.",
+            )
+        raise HTTPException(status_code=500, detail=str(e))
 
     except Exception:
         rag_errors.inc()
@@ -90,7 +106,7 @@ async def retrieve_and_generate_llm_answer(
 @router.post("/evaluate/chunking")
 async def evaluate_chunking(file: UploadFile = File(...)):
 
-    response = rag_service.evaluate_chunking_pipeline(
+    response = get_rag_service().evaluate_chunking_pipeline(
         file, EMBEDDING_MODEL, EMBEDDING_SIZE, EMBEDDING_NORMALISE
     )
 
@@ -100,7 +116,7 @@ async def evaluate_chunking(file: UploadFile = File(...)):
 @router.post("/evaluate/generation")
 async def evaluate_retrieval_and_generation():
 
-    answer = rag_service.evaluate_retrieval_generation_pipeline(
+    answer = get_rag_service().evaluate_retrieval_generation_pipeline(
         EMBEDDING_MODEL,
         CROSS_ENCODER,
         LLM_MODEL,
@@ -120,6 +136,6 @@ async def get_all_queries(
     db=Depends(get_db),
     user_id=Depends(require_roles("USER")),
 ):
-    queries = rag_service.get_queries(db, user_id)
+    queries = get_rag_service().get_queries(db, user_id)
 
     return {"queries": queries}
