@@ -1,5 +1,5 @@
 from app.services.utils.extract import extract_content_from_uploaded_pdf
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import io
 
 
