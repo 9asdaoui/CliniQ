@@ -43,7 +43,9 @@ def auth_headers():
 
 def logout():
     for key in ["token", "first_name", "last_name", "role", "messages"]:
-        st.session_state[key] = [] if key == "messages" else None if key == "token" else ""
+        st.session_state[key] = (
+            [] if key == "messages" else None if key == "token" else ""
+        )
     st.rerun()
 
 
@@ -204,10 +206,14 @@ def auth_page():
                                 timeout=30,
                             )
                         except requests.exceptions.ReadTimeout:
-                            st.error("Backend is taking too long to respond. Please try again.")
+                            st.error(
+                                "Backend is taking too long to respond. Please try again."
+                            )
                             return
                         except requests.exceptions.ConnectionError:
-                            st.error("Cannot reach the backend. Make sure the server is running.")
+                            st.error(
+                                "Cannot reach the backend. Make sure the server is running."
+                            )
                             return
 
                     if resp.status_code == 200:
@@ -229,20 +235,26 @@ def auth_page():
                     first_name = st.text_input("First Name")
                 with col2:
                     last_name = st.text_input("Last Name")
-                reg_email = st.text_input("Email", placeholder="doctor@clinic.com", key="reg_email")
+                reg_email = st.text_input(
+                    "Email", placeholder="doctor@clinic.com", key="reg_email"
+                )
                 reg_password = st.text_input(
                     "Password",
                     type="password",
                     help="Minimum 8 characters",
                     key="reg_pass",
                 )
-                reg_confirm = st.text_input("Confirm Password", type="password", key="reg_confirm")
+                reg_confirm = st.text_input(
+                    "Confirm Password", type="password", key="reg_confirm"
+                )
                 reg_submitted = st.form_submit_button(
                     "Create Account", use_container_width=True, type="primary"
                 )
 
             if reg_submitted:
-                if not all([first_name, last_name, reg_email, reg_password, reg_confirm]):
+                if not all(
+                    [first_name, last_name, reg_email, reg_password, reg_confirm]
+                ):
                     st.warning("Please fill in all fields.")
                 elif reg_password != reg_confirm:
                     st.error("Passwords do not match.")
@@ -262,7 +274,9 @@ def auth_page():
                                 timeout=30,
                             )
                         except requests.exceptions.ReadTimeout:
-                            st.error("Backend is taking too long to respond. Please try again.")
+                            st.error(
+                                "Backend is taking too long to respond. Please try again."
+                            )
                             return
                         except requests.exceptions.ConnectionError:
                             st.error("Cannot reach the backend.")
@@ -317,12 +331,20 @@ def main_app():
             unsafe_allow_html=True,
         )
 
-        if uploaded_file and st.button("📤 Ingest Document", use_container_width=True, type="primary"):
+        if uploaded_file and st.button(
+            "📤 Ingest Document", use_container_width=True, type="primary"
+        ):
             with st.spinner("Processing document…"):
                 try:
                     resp = requests.post(
                         f"{API_BASE}/rag/ingest",
-                        files={"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)},
+                        files={
+                            "file": (
+                                uploaded_file.name,
+                                uploaded_file.getvalue(),
+                                uploaded_file.type,
+                            )
+                        },
                         timeout=120,
                     )
                 except requests.exceptions.ConnectionError:
@@ -346,11 +368,16 @@ def main_app():
 
     # ── Chat interface ──
     st.markdown("#### 💬 Ask CliniQ")
-    st.caption("Ask a clinical question and get an evidence-based answer from the knowledge base.")
+    st.caption(
+        "Ask a clinical question and get an evidence-based answer from the knowledge base."
+    )
 
     # ── Suggested questions (shown only when chat is empty) ──
     if not st.session_state.messages:
-        st.markdown("<p style='font-size:0.83rem;color:#64748B;margin-bottom:4px;'>💡 Try one of these:</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size:0.83rem;color:#64748B;margin-bottom:4px;'>💡 Try one of these:</p>",
+            unsafe_allow_html=True,
+        )
         cols = st.columns(2)
         for i, q in enumerate(SUGGESTED_QUESTIONS):
             if cols[i % 2].button(q, key=f"sug_{i}", use_container_width=True):
@@ -389,7 +416,9 @@ def main_app():
                 label_visibility="collapsed",
             )
         with col_btn:
-            send = st.form_submit_button("Send", type="primary", use_container_width=True)
+            send = st.form_submit_button(
+                "Send", type="primary", use_container_width=True
+            )
 
     # auto-send when a suggestion chip was clicked
     if st.session_state.pending_query and not send:
@@ -409,11 +438,21 @@ def main_app():
                     timeout=300,
                 )
             except requests.exceptions.ReadTimeout:
-                st.session_state.messages.append({"role": "assistant", "content": "⏳ The model is taking too long to respond (CPU inference is slow). Please try again or ask a shorter question."})
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "⏳ The model is taking too long to respond (CPU inference is slow). Please try again or ask a shorter question.",
+                    }
+                )
                 st.rerun()
                 resp = None
             except requests.exceptions.ConnectionError:
-                st.session_state.messages.append({"role": "assistant", "content": "❌ Cannot reach the backend. Make sure the server is running."})
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "❌ Cannot reach the backend. Make sure the server is running.",
+                    }
+                )
                 st.rerun()
                 resp = None
 
@@ -433,14 +472,24 @@ def main_app():
             st.session_state.messages.pop()
             logout()
         elif resp.status_code == 404:
-            st.session_state.messages.append({"role": "assistant", "content": "⚠️ The knowledge base is empty. Please upload and ingest a document using the sidebar first."})
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": "⚠️ The knowledge base is empty. Please upload and ingest a document using the sidebar first.",
+                }
+            )
             st.rerun()
         else:
             try:
                 detail = resp.json().get("detail", resp.text)
             except Exception:
                 detail = resp.text
-            st.session_state.messages.append({"role": "assistant", "content": f"❌ Error {resp.status_code}: {detail}"})
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": f"❌ Error {resp.status_code}: {detail}",
+                }
+            )
             st.rerun()
 
     # Clear chat

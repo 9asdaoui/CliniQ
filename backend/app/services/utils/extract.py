@@ -38,7 +38,11 @@ def extract_content_from_uploaded_pdf(uploaded_file):
         tmp_path = tmp.name
 
     api_key = os.environ.get("LLAMA_CLOUD_API_KEY", "")
-    use_llamaparse = api_key and api_key not in ("", "your_llama_cloud_api_key_here", "your_secret_key")
+    use_llamaparse = api_key and api_key not in (
+        "",
+        "your_llama_cloud_api_key_here",
+        "your_secret_key",
+    )
 
     if use_llamaparse:
         try:

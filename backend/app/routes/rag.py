@@ -39,6 +39,7 @@ rag_latency = Histogram("rag_pipeline_latency_seconds", "RAG pipeline latency")
 
 _rag_service = None
 
+
 def get_rag_service() -> RAGService:
     global _rag_service
     if _rag_service is None:
