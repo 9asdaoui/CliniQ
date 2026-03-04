@@ -16,7 +16,9 @@ services:
 
 
   backend:
-    image: cliniq-backend:fixed
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: cliniq_backend
     networks:
       - app-network
